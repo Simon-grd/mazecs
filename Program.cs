@@ -1,189 +1,154 @@
 ﻿using System;
 
-// ── Dimensions ──
-const int WIDTH    = 50;
-const int HEIGHT   = 20;
-const int OFFSET_Y = 3;
-const int OFFSET_X = 0;
-const int CELL_W   = WIDTH  / 2;
-const int CELL_H   = HEIGHT / 2;
+Maze.Run();
 
-// ── Colors ──
-const ConsoleColor COLOR_WALL   = ConsoleColor.DarkGray;
-const ConsoleColor COLOR_PLAYER = ConsoleColor.Yellow;
-const ConsoleColor COLOR_EXIT   = ConsoleColor.Green;
-const ConsoleColor COLOR_FLOOR  = ConsoleColor.DarkBlue;
-const ConsoleColor COLOR_TITLE  = ConsoleColor.Cyan;
-const ConsoleColor COLOR_HINT   = ConsoleColor.DarkCyan;
-const ConsoleColor COLOR_WIN    = ConsoleColor.Green;
-const ConsoleColor COLOR_QUIT   = ConsoleColor.Red;
-
-// ── UI strings ──
-const string MSG_TITLE = """
-╔══════════════════════════════════════════════════╗
-║          🏃 LABYRINTHE ASCII  C#  🏃             ║
-╚══════════════════════════════════════════════════╝
-""";
-const string MSG_HINT  = "  [Z/↑] Haut   [S/↓] Bas   [Q/←] Gauche   [D/→] Droite   [Échap] Quitter";
-const string MSG_WIN   = """
-  ╔════════════════════════════════╗
-  ║   🎉  FÉLICITATIONS !  🎉      ║
-  ║   Vous avez trouvé la sortie ! ║
-  ╚════════════════════════════════╝
-""";
-const string MSG_QUIT  = "\n  Partie abandonnée. À bientôt !";
-const string MSG_PRESS = "  Appuyez sur une touche pour quitter...";
-
-// ── Grid, player, exit ──
-var grid   = new CellType[WIDTH, HEIGHT];
-var playerX = 0;
-var playerY = 0;
-const int EXIT_X = (CELL_W - 1) * 2;
-const int EXIT_Y = (CELL_H - 1) * 2;
-
-GenerateMaze(grid, playerX, playerY);
-grid[EXIT_X, EXIT_Y] = CellType.Exit;
-
-// ── Initial screen draw ──
-DrawScreen(grid);
-
-// ── Game loop ──
-var won = false;
-
-while (!won)
+static class Maze
 {
-    var key = Console.ReadKey(true).Key;
+    const int Width   = 50;
+    const int Height  = 20;
+    const int OffsetY = 3;
+    const int OffsetX = 0;
+    const int CellW   = Width  / 2;
+    const int CellH   = Height / 2;
 
-    var nx = playerX;
-    var ny = playerY;
+    const string Title    = "╔══════════════════════════════════════════════════╗\n║            LABYRINTHE ASCII  C#                  ║\n╚══════════════════════════════════════════════════╝";
+    const string Hint     = "  [Z/↑] Haut   [S/↓] Bas   [Q/←] Gauche   [D/→] Droite   [Échap] Quitter";
+    const string WinMsg   = "  ╔════════════════════════════════╗\n  ║       FELICITATIONS !          ║\n  ║   Vous avez trouve la sortie ! ║\n  ╚════════════════════════════════╝";
+    const string QuitMsg  = "\n  Partie abandonnée. À bientôt !";
+    const string PressKey = "  Appuyez sur une touche pour quitter...";
 
-    switch (key)
+    public static void Run()
     {
-        case ConsoleKey.Z or ConsoleKey.UpArrow:    ny--; break;
-        case ConsoleKey.S or ConsoleKey.DownArrow:  ny++; break;
-        case ConsoleKey.Q or ConsoleKey.LeftArrow:  nx--; break;
-        case ConsoleKey.D or ConsoleKey.RightArrow: nx++; break;
-        case ConsoleKey.Escape:                     goto EndLoop;
-    }
+        var grid   = Generator.Build(Width, Height, CellW, CellH);
+        var player = new Point(0, 0);
+        var exit   = new Point((CellW - 1) * 2, (CellH - 1) * 2);
 
-    if (nx >= 0 && nx < WIDTH && ny >= 0 && ny < HEIGHT && grid[nx, ny] != CellType.Wall)
-    {
-        if (grid[nx, ny] == CellType.Exit) won = true;
+        grid[exit.X, exit.Y] = CellType.Exit;
+        Renderer.DrawScreen(grid, Width, Height, OffsetX, OffsetY, Title, Hint);
 
-        grid[playerX, playerY] = CellType.Floor;
-        DrawCell(playerX, playerY);
-
-        playerX = nx;
-        playerY = ny;
-        grid[playerX, playerY] = CellType.Player;
-        DrawCell(playerX, playerY);
-    }
-}
-
-EndLoop:
-
-// ── End screen ──
-if (won)
-    DrawTextXY(0, OFFSET_Y + HEIGHT + 3, MSG_WIN,  COLOR_WIN);
-else
-    DrawTextXY(0, OFFSET_Y + HEIGHT + 3, MSG_QUIT, COLOR_QUIT);
-
-DrawTextXY(0, OFFSET_Y + HEIGHT + 8, MSG_PRESS);
-Console.CursorVisible = true;
-Console.ReadKey(true);
-
-
-// ════════════════════════════════════════════════════════════
-//  FUNCTIONS
-// ════════════════════════════════════════════════════════════
-
-// ── Place cursor at (x,y), optionally set color, print text, reset color ──
-void DrawTextXY(int x, int y, string text, ConsoleColor? color = null)
-{
-    Console.SetCursorPosition(x, y);
-    if (color.HasValue) Console.ForegroundColor = color.Value;
-    Console.WriteLine(text);
-    Console.ResetColor();
-}
-
-// ── Draw a single cell using a switch expression (tuple deconstruction) ──
-void DrawCell(int cx, int cy)
-{
-    var (color, pattern) = grid[cx, cy] switch
-    {
-        CellType.Wall   => (COLOR_WALL,   "█"),
-        CellType.Player => (COLOR_PLAYER, "@"),
-        CellType.Exit   => (COLOR_EXIT,   "★"),
-        _               => (COLOR_FLOOR,  "·"),
-    };
-
-    Console.SetCursorPosition(OFFSET_X + cx, OFFSET_Y + cy);
-    Console.ForegroundColor = color;
-    Console.Write(pattern);
-    Console.ResetColor();
-}
-
-// ── Draw the full initial game screen ──
-void DrawScreen(CellType[,] g)
-{
-    Console.Clear();
-    Console.CursorVisible = false;
-
-    DrawTextXY(0, 0, MSG_TITLE, COLOR_TITLE);
-
-    for (var y = 0; y < HEIGHT; y++)
-        for (var x = 0; x < WIDTH; x++)
-            DrawCell(x, y);
-
-    DrawTextXY(0, OFFSET_Y + HEIGHT + 1, MSG_HINT, COLOR_HINT);
-}
-
-// ── Generate the maze using recursive backtracker (Step 5: no intermediate arrays) ──
-void GenerateMaze(CellType[,] g, int startPX, int startPY)
-{
-    // Fill with walls
-    for (var y = 0; y < HEIGHT; y++)
-        for (var x = 0; x < WIDTH; x++)
-            g[x, y] = CellType.Wall;
-
-    var rng     = new Random();
-    var visited = new bool[CELL_W, CELL_H];
-
-    var dirX = new int[] {  0, 1,  0, -1 };
-    var dirY = new int[] { -1, 0,  1,  0 };
-
-    // Recursive carving — replaces the explicit stack (stackX, stackY)
-    Carve(startPX / 2, startPY / 2);
-
-    // Place player at start
-    g[startPX, startPY] = CellType.Player;
-
-    void Carve(int cx, int cy)
-    {
-        visited[cx, cy]   = true;
-        g[cx * 2, cy * 2] = CellType.Floor;
-
-        var order = new int[] { 0, 1, 2, 3 };
-        rng.Shuffle(order);
-
-        foreach (var dir in order)
+        var won = false;
+        while (!won)
         {
-            var nx = cx + dirX[dir];
-            var ny = cy + dirY[dir];
+            var key = Console.ReadKey(true).Key;
+            if (key == ConsoleKey.Escape) break;
 
-            if (nx >= 0 && nx < CELL_W && ny >= 0 && ny < CELL_H && !visited[nx, ny])
+            var (dx, dy) = key switch
             {
-                // Carve the wall between (cx,cy) and (nx,ny)
-                g[cx * 2 + dirX[dir], cy * 2 + dirY[dir]] = CellType.Floor;
-                Carve(nx, ny);
+                ConsoleKey.Z or ConsoleKey.UpArrow    => ( 0, -1),
+                ConsoleKey.S or ConsoleKey.DownArrow  => ( 0,  1),
+                ConsoleKey.Q or ConsoleKey.LeftArrow  => (-1,  0),
+                ConsoleKey.D or ConsoleKey.RightArrow => ( 1,  0),
+                _                                     => ( 0,  0),
+            };
+
+            if (dx == 0 && dy == 0) continue;
+
+            var dest = new Point(player.X + dx, player.Y + dy);
+
+            if (dest.X < 0 || dest.X >= Width || dest.Y < 0 || dest.Y >= Height) continue;
+            if (grid[dest.X, dest.Y] == CellType.Wall) continue;
+
+            if (grid[dest.X, dest.Y] == CellType.Exit) won = true;
+
+            grid[player.X, player.Y] = CellType.Floor;
+            Renderer.DrawCell(player.X, player.Y, CellType.Floor, OffsetX, OffsetY);
+
+            player = dest;
+            grid[player.X, player.Y] = CellType.Player;
+            Renderer.DrawCell(player.X, player.Y, CellType.Player, OffsetX, OffsetY);
+        }
+
+        Renderer.DrawTextXY(0, OffsetY + Height + 2, won ? WinMsg  : QuitMsg,
+                                                     won ? ConsoleColor.Green : ConsoleColor.Red);
+        Renderer.DrawTextXY(0, OffsetY + Height + 7, PressKey);
+        Console.CursorVisible = true;
+        Console.ReadKey(true);
+    }
+}
+
+static class Generator
+{
+    static readonly (int X, int Y)[] Dirs = [(0, -1), (1, 0), (0, 1), (-1, 0)];
+
+    public static CellType[,] Build(int width, int height, int cellW, int cellH)
+    {
+        var grid    = new CellType[width, height];
+        var visited = new bool[cellW, cellH];
+        var rng     = new Random();
+
+        for (var y = 0; y < height; y++)
+            for (var x = 0; x < width; x++)
+                grid[x, y] = CellType.Wall;
+
+        Carve(0, 0);
+        grid[0, 0] = CellType.Player;
+        return grid;
+
+        void Carve(int cx, int cy)
+        {
+            visited[cx, cy]      = true;
+            grid[cx * 2, cy * 2] = CellType.Floor;
+
+            var order = (int[])[0, 1, 2, 3];
+            rng.Shuffle(order);
+
+            foreach (var dir in order)
+            {
+                var (dx, dy) = Dirs[dir];
+                var (nx, ny) = (cx + dx, cy + dy);
+
+                if (nx >= 0 && nx < cellW && ny >= 0 && ny < cellH && !visited[nx, ny])
+                {
+                    grid[cx * 2 + dx, cy * 2 + dy] = CellType.Floor;
+                    Carve(nx, ny);
+                }
             }
         }
     }
 }
 
+static class Renderer
+{
+    static readonly (ConsoleColor Color, string Pattern) WallStyle   = (ConsoleColor.DarkGray,  "█");
+    static readonly (ConsoleColor Color, string Pattern) PlayerStyle = (ConsoleColor.Yellow,    "@");
+    static readonly (ConsoleColor Color, string Pattern) ExitStyle   = (ConsoleColor.Green,     "★");
+    static readonly (ConsoleColor Color, string Pattern) FloorStyle  = (ConsoleColor.DarkBlue,  "·");
 
-// ════════════════════════════════════════════════════════════
-//  ENUMS
-// ════════════════════════════════════════════════════════════
+    public static void DrawScreen(CellType[,] grid, int width, int height, int offsetX, int offsetY, string title, string hint)
+    {
+        Console.Clear();
+        Console.CursorVisible = false;
+        DrawTextXY(0, 0, title, ConsoleColor.Cyan);
+        for (var y = 0; y < height; y++)
+            for (var x = 0; x < width; x++)
+                DrawCell(x, y, grid[x, y], offsetX, offsetY);
+        DrawTextXY(0, offsetY + height + 1, hint, ConsoleColor.DarkCyan);
+    }
 
-enum CellType { Floor = 0, Wall = 1, Player = 2, Exit = 3 }
+    public static void DrawCell(int cx, int cy, CellType cell, int offsetX, int offsetY)
+    {
+        var (color, pattern) = cell switch
+        {
+            CellType.Wall   => WallStyle,
+            CellType.Player => PlayerStyle,
+            CellType.Exit   => ExitStyle,
+            _               => FloorStyle,
+        };
+        Console.SetCursorPosition(offsetX + cx, offsetY + cy);
+        Console.ForegroundColor = color;
+        Console.Write(pattern);
+        Console.ResetColor();
+    }
+
+    public static void DrawTextXY(int x, int y, string text, ConsoleColor? color = null)
+    {
+        Console.SetCursorPosition(x, y);
+        if (color.HasValue) Console.ForegroundColor = color.Value;
+        Console.Write(text);
+        Console.ResetColor();
+    }
+}
+
+record struct Point(int X, int Y);
+
+enum CellType { Floor, Wall, Player, Exit }
